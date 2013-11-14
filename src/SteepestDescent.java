@@ -1,6 +1,13 @@
 import Jama.*;
 import java.util.*;
 
+/**
+ * Class for the Steepest Descent Algorithm, first it computes a basic matrix 
+ * solution. Then it runs and outputs the results of 5 10x10 random matrix 
+ * equations(the A values are positive definite), and their solutions. 
+ * 
+ * @author Jonathan Foster 11/13/2013
+ */
 public class SteepestDescent {
 
 	/**
@@ -8,30 +15,24 @@ public class SteepestDescent {
 	 */
 	public static void main(String[] args) {
 		
-		double[][] array = {{5, 2},{2, 1}};
-		Matrix P = new Matrix(array);
-		double[][] array1 = {{1},{1}};
-		Matrix q = new Matrix(array1);
-		Matrix z = P.solve(q);
-		
-		P.print(1, 0);
-		q.print(1, 0);
-		z.print(1, 0);
-	
+		// This keeps track of how many steps it takes to find the solution
+		int count = 0;
 		
 		// First we set up our array of matrices
 		ArrayList<Matrix> Xmatrices = new ArrayList();
 		ArrayList<Matrix> Dmatrices = new ArrayList();
 		
 		// Prescribe our accuracy
-		double accuracy = 0.00001;
+		final double ACCURACY = 0.00001;
 		
 		// Create our A and B matrices. 
 		double[][] arrayA = {{5, 2}, {2, 1}};
 		Matrix A = new Matrix(arrayA);
 		double[][] arrayB = {{1,}, {1}};
 		Matrix b = new Matrix(arrayB);
+		System.out.print("Matrix A: ");
 		A.print(1, 0);
+		System.out.print("Matrix b: ");
 		b.print(1, 0);
 		
 		// create any vector initialX, add this to the matrices array
@@ -39,24 +40,100 @@ public class SteepestDescent {
 		double[][] arrayX = {{1,}, {1}};
 		Matrix x = new Matrix(arrayX);
 		Xmatrices.add(x);
-		// x.print(1, 0);
 		
-		// compute D, this will be d_k-1 because each iteration begins after we have our inital x. 
+		// compute D, this will be d_k-1 because each iteration begins after we have our initial x. 
 		Matrix d = computeD(A, b, x);
 		Dmatrices.add(d);
-		//d.print(1, 0);
 		
-		Matrix test = computeX(x, d, A);
-		//test.print(1, 0);
+		// Here is our first simple test, outputs the answer of the above matrices
+		System.out.println("Solution vector x to matrices A and b: ");
 		
 		// call our algorithm
-		Matrix answer = steepestDescentDPAlgorithm(Xmatrices, Dmatrices, A, b, accuracy);
+		Matrix answer = steepestDescentDPAlgorithm(Xmatrices, Dmatrices, A, b, ACCURACY, count);
 		
-		answer.print(1, 0);
+		/********************************************************************************************
+		 * Now that we know our algorithm works, we'll increase the value of x_0 to see how it 
+		 * affects the number of iterations it takes to get to a solution. 
+		 ********************************************************************************************/
+		
+		for (int i=0; i<5; i++) {
+			System.out.println("*****************************************************************************");
+			System.out.println("Increasing x, Iteration #: " +(i+1));
+			Xmatrices.clear();
+			Dmatrices.clear();
+			count = 0;
+		
+			// Print our values
+			System.out.print("Matrix A: ");
+			A.print(1, 0);
+			System.out.print("Matrix b: ");
+			b.print(1, 0);
+			
+			// Computes any x as a starting point
+			double[][] newarrayx = {{i+1}, {0}};
+			Matrix newx = new Matrix(newarrayx);
+			Xmatrices.add(newx);
+			
+			// compute D, this will be d_k-1 because each iteration begins after we have our initial x. 
+			Matrix newd = computeD(A, b, newx);
+			Dmatrices.add(newd);
+			
+			System.out.println("Solution vector x to matrices A and b: ");
+			Matrix newAnswer = steepestDescentDPAlgorithm(Xmatrices, Dmatrices, A, b, ACCURACY, count);		
+		}
+		
+		System.out.println("Now we have seen that as you increase X_0, the number of iterations it takes" +
+				" to find solutions decreases!!!!!!!!!!!!!!!\n");
+		
+		/********************************************************************************************
+		 * Now that we have seen that our algorithm correctly finds solutions, we are going to create
+		 * 5 random 10x10 positive definite matrices A and vectors b and solve Ax = b
+		 ********************************************************************************************/
+		
+		for (int i=0; i<5; i++) {
+			System.out.println("*****************************************************************************");
+			System.out.println("Random Iteration #: " +(i+1));
+			Xmatrices.clear();
+			Dmatrices.clear();
+			count = 0;
+			Matrix randb = Matrix.random(10, 1);
+			Matrix B = generateRandomMatrix();
+			Matrix randA = computeRandomA(B);
+			
+			// Print our values
+			System.out.print("Matrix A: ");
+			randA.print(1, 0);
+			System.out.print("Matrix b: ");
+			randb.print(1, 0);
+			
+			// Computes any x as a starting point
+			Matrix newx = Matrix.random(10, 1);
+			Xmatrices.add(newx);
+			
+			// compute D, this will be d_k-1 because each iteration begins after we have our initial x. 
+			Matrix newd = computeD(randA, randb, newx);
+			Dmatrices.add(newd);
+			
+			System.out.println("Solution vector x to matrices A and b: ");
+			Matrix newAnswer = steepestDescentDPAlgorithm(Xmatrices, Dmatrices, randA, randb, ACCURACY, count);		
+		}
+		
 	}
 	
+	/**
+	 * Here is our main algorithm, it follows the formula of computing vector x, while
+	 * the norm of d is greater than our prescribed accuracy.  
+	 * 
+	 * @param Xmatrices array holding our x matrices
+	 * @param Dmatrices array for holding our D matrices
+	 * @param A the matrix A
+	 * @param b the matrix b
+	 * @param accuracy the accuracy to which our solution is calculated
+	 * @param count the number of iterations our algorithm does
+	 * @return Matrix answer, our solution matrix
+	 */
 	public static Matrix steepestDescentDPAlgorithm(ArrayList<Matrix> Xmatrices, 
-			ArrayList<Matrix> Dmatrices, Matrix A, Matrix b, double accuracy) {
+			ArrayList<Matrix> Dmatrices, Matrix A, Matrix b, double accuracy, int count) {
 		int i = 1;
 		double dNorm = Dmatrices.get(0).normF();
 		while (dNorm >= accuracy) {
@@ -66,12 +143,22 @@ public class SteepestDescent {
 			Dmatrices.add(nextD);
 			dNorm = Dmatrices.get(i-1).normF();
 			i++;
+			count++;
 		}
 		Matrix answer = Xmatrices.get(Xmatrices.size()-1);
+		System.out.print("Number of iterations: " +count);
+		answer.print(1, 0);
 		return answer;
 	}
 	
-	// Here we use the formula -(A*x_k - b) to calculate our value for d_k
+	/**
+	 * Here we use the formula -(A*x_k - b) to calculate our value for d_k
+	 * 
+	 * @param A - the Matrix A
+	 * @param b - the matrix b
+	 * @param x - the prev x value
+	 * @return - our new d value
+	 */
 	public static Matrix computeD(Matrix A, Matrix b, Matrix x) {
 		Matrix temp = A.times(x);
 		temp = temp.minus(b);
@@ -79,7 +166,14 @@ public class SteepestDescent {
 		return temp;
 	}
 	
-	// check to see that the top part is supposed to be the norm or absolute value
+	/**
+	 * Check to see that the top part is supposed to be the norm or absolute value.
+	 * 
+	 * @param prevX the previous X matrix
+	 * @param prevD the previous D matrix
+	 * @param A the matrix A
+	 * @return our new x value
+	 */
 	public static Matrix computeX(Matrix prevX, Matrix prevD, Matrix A) {
 		Matrix x;
 		// calculate the top part of our equation. 
@@ -101,6 +195,7 @@ public class SteepestDescent {
 	}
 	
 	/** Determines if a given matrix is a row vector, that is, it has only one row.
+	 * 
 	 * @param m the matrix.
 	 * @return whether the given matrix is a row vector (whether it has only one row).
 	 */
@@ -109,9 +204,10 @@ public class SteepestDescent {
 	}
 	
 	
-	/** Determines if a given matrix is a column vector, that is, it has only one column.
+	/** Determines if a given matrix is a column vector
+	 * 
 	 * @param m the matrix.
-	 * @return whether the given matrix is a column vector (whether it has only one column).
+	 * @return whether the given matrix is a column vector. 
 	 */
 	public static boolean isColumnVector(Matrix m) {
 		return m.getColumnDimension()==1;
@@ -119,6 +215,7 @@ public class SteepestDescent {
 	
 	/** Transforms the given matrix into a column vector, that is, a matrix with one column.
 	 * The matrix must be a vector (row or column) to begin with.
+	 * 
 	 * @param m
 	 * @return <code>m.transpose()</code> if m is a row vector,
 	 *         <code>m</code> if m is a column vector.
@@ -133,7 +230,8 @@ public class SteepestDescent {
 			throw new IllegalArgumentException("m is not a vector.");
 	}
 	
-	/** Computes the dot product of two vectors.  Both must be either row or column vectors.
+	/** Computes the dot product of two vectors.
+	 * 
 	 * @param m1
 	 * @param m2
 	 * @return the dot product of the two vectors.
@@ -155,6 +253,26 @@ public class SteepestDescent {
 		
 		return scalarProduct;
 		
+	}
+	
+	/**
+	 * Generates a random matrix
+	 * @return random matrix
+	 */
+	public static Matrix generateRandomMatrix() {
+		Matrix B = Matrix.random(10, 10);
+		return B;
+	}
+	
+	/**
+	 * Computes B_transposed times B to get A
+	 * @param B the random matrix
+	 * @return the answer 
+	 */
+	public static Matrix computeRandomA(Matrix B) {
+		Matrix BTrans = B.transpose();
+		Matrix A = BTrans.times(B);
+		return A;
 	}
 
 }
